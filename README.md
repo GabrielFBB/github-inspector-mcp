@@ -1,18 +1,18 @@
 # GitHub Inspector MCP
 
-Servidor MCP que da a assistentes de IA acesso de leitura a repositorios do GitHub.
+Servidor MCP que dá a assistentes de IA acesso de leitura a repositórios do GitHub.
 
-O Model Context Protocol e um padrao aberto que permite a modelos de linguagem usar ferramentas externas. Este servidor expoe cinco ferramentas que qualquer cliente MCP pode chamar.
+O Model Context Protocol e um padrao aberto que permite a modelos de linguagem usarem ferramentas externas. Este servidor expõe cinco ferramentas que qualquer cliente MCP pode chamar.
 
 ## Ferramentas
 
-| Ferramenta | Descricao |
+| Ferramenta | Descrição |
 |---|---|
-| `list_repos` | Lista os repositorios publicos de um utilizador |
-| `list_issues` | Lista issues de um repositorio, com filtro por estado |
+| `list_repos` | Lista os repositórios públicos de um utilizador |
+| `list_issues` | Lista issues de um repositório, com filtro por estado |
 | `list_commits` | Mostra os commits mais recentes |
-| `list_files` | Lista os ficheiros do repositorio, com filtro opcional |
-| `read_file` | Le o conteudo de um ficheiro |
+| `list_files` | Lista os ficheiros do repositório, com filtro opcional |
+| `read_file` | Lê o conteúdo de um ficheiro |
 
 ## Exemplo
 
@@ -31,7 +31,7 @@ Devolve:
 3 repositorios de GabrielFBB:
 
 github-inspector-mcp [TypeScript]
-  Servidor MCP que da acesso de leitura a repositorios do GitHub
+  Servidor MCP que da acesso de leitura a repositórios do GitHub
   https://github.com/GabrielFBB/github-inspector-mcp
 
 sisyphus-tracker [TypeScript]
@@ -40,13 +40,13 @@ sisyphus-tracker [TypeScript]
 ```
 
 
-Na pratica um cliente MCP faz isto automaticamente. O exemplo acima serve para testar sem cliente nenhum.
+Na prática um cliente MCP faz isto automaticamente. O exemplo acima serve para testar sem cliente nenhum.
 
 ## Stack
 
-TypeScript, Node.js, MCP SDK, Zod para validacao de argumentos.
+TypeScript, Node.js, MCP SDK, Zod para validação de argumentos.
 
-## Instalacao
+## Instalação
 
 ```bash
 git clone https://github.com/GabrielFBB/github-inspector-mcp.git
@@ -55,9 +55,9 @@ npm install
 npm run build
 ```
 
-## Configuracao
+## Configuração
 
-O servidor funciona sem autenticacao para repositorios publicos, mas o GitHub limita a 60 pedidos por hora. Com um Personal Access Token o limite sobe para 5000.
+O servidor funciona sem autenticação para repositorios publicos, mas o GitHub limita a 60 pedidos por hora. Com um Personal Access Token o limite sobe para 5000.
 
 Cria um token em Settings, Developer settings, Personal access tokens, e define a variavel:
 
@@ -83,15 +83,15 @@ Adiciona ao ficheiro de configuracao:
 }
 ```
 
-Reinicia o cliente e as ferramentas ficam disponiveis.
+Reinicia o cliente e as ferramentas ficam disponíveis.
 
-## Notas de implementacao
+## Notas de implementação
 
-Os erros da API sao traduzidos para mensagens legiveis: 404 indica repositorio inexistente, 403 com limite esgotado sugere configurar o token.
+Os erros da API são traduzidos para mensagens legíveis: 404 indica repositório inexistente, 403 com limite esgotado sugere configurar o token.
 
-O `list_files` usa a Git Trees API com `recursive=1`, que devolve a arvore inteira num pedido em vez de percorrer diretorios.
+O `list_files` usa a Git Trees API com `recursive=1`, que devolve a árvore inteira num pedido em vez de percorrer diretórios.
 
-O `read_file` recebe o conteudo em base64 e descodifica. Ficheiros acima de 1 MB nao trazem conteudo na resposta da API, e nesse caso o erro e explicito.
+O `read_file` recebe o conteúdo em base64 e descodifica. Ficheiros acima de 1 MB não trazem conteúdo na resposta da API, e nesse caso o erro é explícito.
 
 ## Autor
 
