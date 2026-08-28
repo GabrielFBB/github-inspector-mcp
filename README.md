@@ -27,6 +27,18 @@ printf '%s\n%s\n' \
 
 Devolve:
 
+```
+3 repositorios de GabrielFBB:
+
+github-inspector-mcp [TypeScript]
+  Servidor MCP que da acesso de leitura a repositorios do GitHub
+  https://github.com/GabrielFBB/github-inspector-mcp
+
+sisyphus-tracker [TypeScript]
+  App fullstack de desenvolvimento pessoal
+  https://github.com/GabrielFBB/sisyphus-tracker
+```
+
 
 Na pratica um cliente MCP faz isto automaticamente. O exemplo acima serve para testar sem cliente nenhum.
 
