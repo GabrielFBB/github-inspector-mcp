@@ -14,6 +14,22 @@ O Model Context Protocol e um padrao aberto que permite a modelos de linguagem u
 | `list_files` | Lista os ficheiros do repositorio, com filtro opcional |
 | `read_file` | Le o conteudo de um ficheiro |
 
+## Exemplo
+
+O servidor comunica por JSON-RPC sobre stdio. Depois do handshake, uma chamada a `list_repos`:
+
+```bash
+printf '%s\n%s\n' \
+ '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"teste","version":"1"}}}' \
+ '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_repos","arguments":{"user":"GabrielFBB","limit":3}}}' \
+ | node build/index.js
+```
+
+Devolve:
+
+
+Na pratica um cliente MCP faz isto automaticamente. O exemplo acima serve para testar sem cliente nenhum.
+
 ## Stack
 
 TypeScript, Node.js, MCP SDK, Zod para validacao de argumentos.
