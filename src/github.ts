@@ -103,3 +103,108 @@ export async function listTree(owner: string, repo: string): Promise<TreeEntry[]
   );
   return tree.tree.filter((e) => e.type === "blob");
 }
+
+// ---------- escrita ----------
+
+function requireToken(): void {
+  if (!process.env.GITHUB_TOKEN) {
+    throw new Error(
+      "Esta operacao precisa de autenticacao. Define a variavel GITHUB_TOKEN com um token que tenha permissao de escrita no repositorio."
+    );
+  }
+}
+
+async function post<T>(path: string, body: unknown): Promise<T> {
+  requireToken();
+
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers: { ...headers(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (res.status === 404) {
+    throw new Error(
+      "Nao encontrado. Verifica o repositorio, ou se o teu token tem acesso a ele."
+    );
+  }
+  if (res.status === 403) {
+    throw new Error(
+      "O GitHub recusou a operacao. O token pode nao ter permissao de escrita neste repositorio."
+    );
+  }
+  if (res.status === 410) {
+    throw new Error("As issues estao desativadas neste repositorio.");
+  }
+  if (res.status === 422) {
+    throw new Error("Os dados enviados sao invalidos para esta operacao.");
+  }
+  if (!res.ok) {
+    throw new Error(`Erro do GitHub (${res.status}).`);
+  }
+
+  return (await res.json()) as T;
+}
+
+export interface CreatedIssue {
+  number: number;
+  title: string;
+  html_url: string;
+  state: string;
+}
+
+export interface CreatedComment {
+  id: number;
+  html_url: string;
+}
+
+export function createIssue(
+  owner: string,
+  repo: string,
+  title: string,
+  body?: string,
+  labels?: string[]
+): Promise<CreatedIssue> {
+  const payload: Record<string, unknown> = { title };
+  if (body) payload.body = body;
+  if (labels && labels.length > 0) payload.labels = labels;
+
+  return post<CreatedIssue>(`/repos/${owner}/${repo}/issues`, payload);
+}
+
+export function commentOnIssue(
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string
+): Promise<CreatedComment> {
+  return post<CreatedComment>(
+    `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
+    { body }
+  );
+}
+
+// ---------- analise ----------
+
+export interface RepoDetail {
+  name: string;
+  full_name: string;
+  description: string | null;
+  language: string | null;
+  stargazers_count: number;
+  forks_count: number;
+  open_issues_count: number;
+  created_at: string;
+  updated_at: string;
+  html_url: string;
+  license: { name: string } | null;
+  topics?: string[];
+}
+
+export function getRepo(owner: string, repo: string): Promise<RepoDetail> {
+  return get<RepoDetail>(`/repos/${owner}/${repo}`);
+}
+
+export function getLanguages(owner: string, repo: string): Promise<Record<string, number>> {
+  return get<Record<string, number>>(`/repos/${owner}/${repo}/languages`);
+}
