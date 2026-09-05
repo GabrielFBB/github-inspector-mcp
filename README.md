@@ -109,6 +109,8 @@ Reinicia o cliente e as ferramentas ficam disponíveis.
 
 **Chamadas em paralelo.** O `analyze_repo` usa `Promise.all` para as quatro chamadas, com fallback individual: se as linguagens falharem, o resto do relatório sai na mesma.
 
+**Cache com invalidacao.** As respostas de leitura ficam em memoria durante cinco minutos, o que poupa o limite de pedidos e torna instantaneas as chamadas repetidas na mesma conversa. As operacoes de escrita nunca sao cacheadas e, depois de criarem uma issue ou comentario, limpam da cache tudo o que diga respeito a esse repositorio — caso contrario a lista de issues ficaria desatualizada.
+
 **Ficheiros grandes.** A API não devolve conteúdo acima de 1 MB. Nesse caso o `read_file` explica porquê em vez de devolver vazio.
 
 ## Autor

@@ -1,5 +1,43 @@
 const BASE = "https://api.github.com";
 
+// ---------- cache ----------
+// guardamos respostas de leitura por pouco tempo: poupa o limite de
+// pedidos do GitHub e torna instantaneas as chamadas repetidas que o
+// modelo faz na mesma conversa. Escrita nunca e cacheada.
+
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_ENTRIES = 200;
+
+type CacheEntry = { value: unknown; expiresAt: number };
+const cache = new Map<string, CacheEntry>();
+
+function cacheGet<T>(key: string): T | null {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    cache.delete(key);
+    return null;
+  }
+  return hit.value as T;
+}
+
+function cacheSet(key: string, value: unknown): void {
+  // limite simples: se encher, deita fora a entrada mais antiga
+  if (cache.size >= MAX_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest) cache.delete(oldest);
+  }
+  cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+/** Limpa tudo o que diga respeito a um repositorio. Usado depois de escrever. */
+function invalidateRepo(owner: string, repo: string): void {
+  const prefix = `/repos/${owner}/${repo}`;
+  for (const key of cache.keys()) {
+    if (key.startsWith(prefix)) cache.delete(key);
+  }
+}
+
 export interface Repo {
   name: string;
   full_name: string;
@@ -48,6 +86,9 @@ function headers(): Record<string, string> {
 }
 
 async function get<T>(path: string): Promise<T> {
+  const cached = cacheGet<T>(path);
+  if (cached !== null) return cached;
+
   const res = await fetch(`${BASE}${path}`, { headers: headers() });
 
   if (res.status === 404) {
@@ -66,7 +107,9 @@ async function get<T>(path: string): Promise<T> {
     throw new Error(`Erro do GitHub (${res.status}).`);
   }
 
-  return (await res.json()) as T;
+  const data = (await res.json()) as T;
+  cacheSet(path, data);
+  return data;
 }
 
 export function listRepos(user: string, limit: number): Promise<Repo[]> {
@@ -158,7 +201,7 @@ export interface CreatedComment {
   html_url: string;
 }
 
-export function createIssue(
+export async function createIssue(
   owner: string,
   repo: string,
   title: string,
@@ -169,19 +212,27 @@ export function createIssue(
   if (body) payload.body = body;
   if (labels && labels.length > 0) payload.labels = labels;
 
-  return post<CreatedIssue>(`/repos/${owner}/${repo}/issues`, payload);
+  const created = await post<CreatedIssue>(
+    `/repos/${owner}/${repo}/issues`,
+    payload
+  );
+  // a lista de issues em cache ficou desatualizada
+  invalidateRepo(owner, repo);
+  return created;
 }
 
-export function commentOnIssue(
+export async function commentOnIssue(
   owner: string,
   repo: string,
   issueNumber: number,
   body: string
 ): Promise<CreatedComment> {
-  return post<CreatedComment>(
+  const created = await post<CreatedComment>(
     `/repos/${owner}/${repo}/issues/${issueNumber}/comments`,
     { body }
   );
+  invalidateRepo(owner, repo);
+  return created;
 }
 
 // ---------- analise ----------
