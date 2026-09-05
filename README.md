@@ -1,10 +1,12 @@
 # GitHub Inspector MCP
 
-Servidor MCP que dá a assistentes de IA acesso de leitura a repositórios do GitHub.
+Servidor MCP que dá a assistentes de IA acesso a repositórios do GitHub — leitura, escrita e análise.
 
-O Model Context Protocol e um padrao aberto que permite a modelos de linguagem usarem ferramentas externas. Este servidor expõe cinco ferramentas que qualquer cliente MCP pode chamar.
+O Model Context Protocol é um padrão aberto que permite a modelos de linguagem usarem ferramentas externas. Escreves o servidor uma vez e qualquer cliente MCP consegue usá-lo, em vez de uma integração por cada assistente.
 
 ## Ferramentas
+
+### Leitura
 
 | Ferramenta | Descrição |
 |---|---|
@@ -14,31 +16,45 @@ O Model Context Protocol e um padrao aberto que permite a modelos de linguagem u
 | `list_files` | Lista os ficheiros do repositório, com filtro opcional |
 | `read_file` | Lê o conteúdo de um ficheiro |
 
+### Escrita
+
+Precisam de `GITHUB_TOKEN` com permissão de escrita no repositório.
+
+| Ferramenta | Descrição |
+|---|---|
+| `create_issue` | Cria uma issue com título, corpo e etiquetas |
+| `comment_on_issue` | Adiciona um comentário a uma issue existente |
+
+### Análise
+
+| Ferramenta | Descrição |
+|---|---|
+| `analyze_repo` | Retrato completo do repositório numa só resposta |
+
+O `analyze_repo` é diferente das outras: não mapeia um endpoint da API. Faz quatro chamadas em paralelo — metadados, linguagens, commits e issues — e compõe um resumo com distribuição de linguagens em percentagem, janela de atividade e contribuidores recentes.
+
 ## Exemplo
 
-O servidor comunica por JSON-RPC sobre stdio. Depois do handshake, uma chamada a `list_repos`:
+O servidor comunica por JSON-RPC sobre stdio. Depois do handshake, uma chamada a `analyze_repo`:
 
-```bash
-printf '%s\n%s\n' \
- '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"teste","version":"1"}}}' \
- '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_repos","arguments":{"user":"GabrielFBB","limit":3}}}' \
- | node build/index.js
-```
+    printf '%s\n%s\n' \
+     '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"teste","version":"1"}}}' \
+     '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"analyze_repo","arguments":{"owner":"GabrielFBB","repo":"sisyphus-tracker"}}}' \
+     | node build/index.js
 
 Devolve:
 
-```
-3 repositorios de GabrielFBB:
+    GabrielFBB/sisyphus-tracker
+    App fullstack de desenvolvimento pessoal — hábitos, treinos e biblioteca de leituras.
 
-github-inspector-mcp [TypeScript]
-  Servidor MCP que da acesso de leitura a repositórios do GitHub
-  https://github.com/GabrielFBB/github-inspector-mcp
+    1 estrela, 0 forks, 0 issues abertas
+    Criado em 2026-08-13, atualizado em 2026-08-29
+    Topicos: django, docker, jwt, nextjs, postgresql, react, typescript
 
-sisyphus-tracker [TypeScript]
-  App fullstack de desenvolvimento pessoal
-  https://github.com/GabrielFBB/sisyphus-tracker
-```
+    Linguagens: TypeScript 75%, Python 24%
 
+    Atividade: 30 commits entre 2026-08-26 e 2026-08-29
+    Contribuidores recentes: GabrielFBB (30)
 
 Na prática um cliente MCP faz isto automaticamente. O exemplo acima serve para testar sem cliente nenhum.
 
@@ -48,51 +64,53 @@ TypeScript, Node.js, MCP SDK, Zod para validação de argumentos.
 
 ## Instalação
 
-```bash
-git clone https://github.com/GabrielFBB/github-inspector-mcp.git
-cd github-inspector-mcp
-npm install
-npm run build
-```
+    git clone https://github.com/GabrielFBB/github-inspector-mcp.git
+    cd github-inspector-mcp
+    npm install
+    npm run build
 
 ## Configuração
 
-O servidor funciona sem autenticação para repositorios publicos, mas o GitHub limita a 60 pedidos por hora. Com um Personal Access Token o limite sobe para 5000.
+As ferramentas de leitura funcionam sem autenticação para repositórios públicos, mas o GitHub limita a 60 pedidos por hora. Com um Personal Access Token o limite sobe para 5000, e ganhas acesso a repositórios privados.
 
-Cria um token em Settings, Developer settings, Personal access tokens, e define a variavel:
+As ferramentas de escrita exigem token com permissão no repositório em causa.
 
-```bash
-export GITHUB_TOKEN=o_teu_token
-```
+Cria um token em Settings, Developer settings, Personal access tokens, e define a variável:
+
+    export GITHUB_TOKEN=o_teu_token
 
 ## Usar com o Claude Desktop
 
-Adiciona ao ficheiro de configuracao:
+Adiciona ao ficheiro de configuração:
 
-```json
-{
-  "mcpServers": {
-    "github-inspector": {
-      "command": "node",
-      "args": ["/caminho/absoluto/para/github-inspector-mcp/build/index.js"],
-      "env": {
-        "GITHUB_TOKEN": "o_teu_token"
+    {
+      "mcpServers": {
+        "github-inspector": {
+          "command": "node",
+          "args": ["/caminho/absoluto/para/github-inspector-mcp/build/index.js"],
+          "env": {
+            "GITHUB_TOKEN": "o_teu_token"
+          }
+        }
       }
     }
-  }
-}
-```
 
 Reinicia o cliente e as ferramentas ficam disponíveis.
 
 ## Notas de implementação
 
-Os erros da API são traduzidos para mensagens legíveis: 404 indica repositório inexistente, 403 com limite esgotado sugere configurar o token.
+**Separação de camadas.** O `src/github.ts` trata da API do GitHub e não sabe nada de MCP. O `src/index.ts` trata do protocolo e não sabe nada de HTTP. Trocar um não obriga a mexer no outro.
 
-O `list_files` usa a Git Trees API com `recursive=1`, que devolve a árvore inteira num pedido em vez de percorrer diretórios.
+**Schemas gerados pelo Zod.** Os argumentos de cada ferramenta são declarados com Zod, que gera automaticamente o JSON Schema que o cliente recebe — tipos, mínimos, máximos e valores por defeito — e valida em tempo de execução antes de o código correr.
 
-O `read_file` recebe o conteúdo em base64 e descodifica. Ficheiros acima de 1 MB não trazem conteúdo na resposta da API, e nesse caso o erro é explícito.
+**Erros traduzidos.** Um 404 sugere verificar o nome do repositório; um 403 com limite esgotado sugere configurar o token; um 403 numa operação de escrita sugere que faltam permissões. As mensagens dizem o que fazer, não só o que falhou.
+
+**Git Trees API.** O `list_files` usa `recursive=1`, que devolve a árvore inteira num pedido em vez de percorrer diretório a diretório.
+
+**Chamadas em paralelo.** O `analyze_repo` usa `Promise.all` para as quatro chamadas, com fallback individual: se as linguagens falharem, o resto do relatório sai na mesma.
+
+**Ficheiros grandes.** A API não devolve conteúdo acima de 1 MB. Nesse caso o `read_file` explica porquê em vez de devolver vazio.
 
 ## Autor
 
-Gabriel Borges
+Gabriel Borges — [github.com/GabrielFBB](https://github.com/GabrielFBB)
